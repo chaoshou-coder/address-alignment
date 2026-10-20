@@ -1,18 +1,53 @@
 import config
 import sqlite3
 from contextlib import closing
+from init_db import initialize_database
 from models_def import AddressTagging, load_params
 
 def address_alignment(text, model):
     tagging = model.predict(text)
 
-    # 姓名、电话和 O 标签不进入地址字段。
-    label_map = {"prov": 2, "city": 3, "district": 4, "town": 5, "detail": 6}
-    address = dict.fromkeys(range(2, 7))
-    for char, label in zip(text, tagging):
-        region_type_id = label_map.get(label)
-        if region_type_id is not None:
-            address[region_type_id] = (address[region_type_id] or "") + char
+    # 填充地址信息
+    # 标签到地区类别 id 映射表
+    label_map = {
+        "": 0,
+        "prov": 2,
+        "city": 3,
+        "district": 4,
+        "road": 5,
+        "intersection": 5,
+        "town": 5,
+        "roadno": 6,
+        "cellno": 6,
+        "community": 6,
+        "houseno": 6,
+        "poi": 6,
+        "subpoi": 6,
+        "assist": 6,
+        "distance": 6,
+        "village_group": 6,
+        "floorno": 6,
+        "devzone": 6,
+    }
+    address = {
+        2: None,
+        3: None,
+        4: None,
+        5: None,
+        6: None,
+    }
+    start_pos = 0
+    tag_len = len(tagging)
+    for end_pos in range(tag_len):
+        # 如果到结尾、或 end_pos 的下一个位置不是同一类
+        if (end_pos == tag_len - 1) or (
+            label_map[tagging[end_pos + 1]] != label_map[tagging[start_pos]]
+        ):
+            if label_map[tagging[start_pos]] != 0:
+                # 添加片段
+                address[label_map[tagging[start_pos]]] = text[start_pos : end_pos + 1]
+            start_pos = end_pos + 1
+    # print("标注后填充结果:", address)
 
     # 校验地址信息
     for region_type_id in [2, 3, 4, 5]:
@@ -81,12 +116,7 @@ def check_address(region_type_id, address, parent_id=None):
         return False
 
 def query_parent(region_type_id, region_name, region_id=None):
-    """
-    查询自己和父级地址信息
-    如果是首次查询，只有地址名称可作为过滤信息
-    如果是后续查询，可以使用先前查询的 parent_id 作为当前 id 来进行过滤，防止重名地址的问题
-    """
-    # 只读连接，避免路径错误时悄悄创建空数据库。
+    """Query a region and its parent using the local SQLite database."""
     database_uri = config.SQLITE_DB_PATH.resolve().as_uri() + "?mode=ro"
     with closing(sqlite3.connect(database_uri, uri=True)) as connection:
         connection.row_factory = sqlite3.Row
@@ -98,22 +128,21 @@ def query_parent(region_type_id, region_name, region_id=None):
             "where region.region_type = ? and region.name like ?"
         )
         params = [region_type_id, f"%{region_name}%"]
-        if region_id is not None:
+        if region_id:
             sql += " and region.id = ?"
             params.append(region_id)
-        # 多个候选时优先精确匹配，其余按原地区编号稳定排序。
-        sql += " order by (region.name = ?) desc, region.id limit 1"
-        params.append(region_name)
-        row = connection.execute(sql, params).fetchone()
-        return dict(row) if row is not None else None
-
+        results = connection.execute(sql, params).fetchall()
+        if results:
+            for row in results:
+                if region_name == row["name"]:
+                    return dict(row)
+            return dict(results[0])
+        return None
 
 if __name__ == "__main__":
-    from init_db import initialize_database
     initialize_database()
     model = AddressTagging(config.PRETRAINED_DIR / "bert-base-chinese", config.LABELS)
-    if not load_params(model, config.MODEL_PARAMS_PATH):
-        raise FileNotFoundError("缺少训练权重，请先运行 main.py")
+    load_params(model, config.FINETUNED_DIR / "address_tagging.pt")
     text = [
         "中国浙江省杭州市余杭区葛墩路27号楼",
         "北京市通州区永乐店镇27号楼",

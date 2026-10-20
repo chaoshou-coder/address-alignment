@@ -1,4 +1,5 @@
 import config
+from datetime import datetime
 from train import AddressTaggingTrainer
 from preprocess import AddressTaggingProcessor
 from models_def import AddressTagging, load_params
@@ -7,34 +8,29 @@ from torch.utils.tensorboard.writer import SummaryWriter
 device = config.DEVICE
 learning_rate = 1e-5
 
-def model_go(train=None, test=None, inference=None, model_params_path=None, epochs=10, batch_size=32):
-    print(f"运行设备：{device}")
+def model_go(train=None, test=None, inference=None, model_params_path=None):
     model = AddressTagging(config.PRETRAINED_DIR / "bert-base-chinese", config.LABELS)
     processor = AddressTaggingProcessor(
-        data_path=config.RAW_DATA_DIR / "data.jsonl",
+        data_path=config.RAW_DATA_DIR / "data.txt",
         save_dir=config.PROCESSED_DATA_DIR,
         tokenizer=model.tokenizer,
-        batch_size=batch_size,
+        batch_size=128,
         label_list=config.LABELS,
-        max_seq_len=config.MAX_SEQ_LEN,
     )
-    trainer = AddressTaggingTrainer(model, device, epochs, learning_rate)
+    trainer = AddressTaggingTrainer(model, device, 10, learning_rate)
 
     writer = None
-    model_params_path = model_params_path or config.MODEL_PARAMS_PATH
-    loaded = load_params(model, model_params_path)
-    if not train and not loaded:
-        raise FileNotFoundError(f"缺少训练权重：{model_params_path}，请先训练")
+    save_name = f"address_tagging-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    load_params(model, model_params_path)
 
     if train:
-        config.FINETUNED_DIR.mkdir(parents=True, exist_ok=True)
-        writer = SummaryWriter(str(config.LOGS_DIR))
+        writer = SummaryWriter(config.LOGS_DIR / save_name)
         dataloader = {
             "train": processor.get_dataloader("train"),
             "valid": processor.get_dataloader("valid"),
         }
+        model_params_path = config.FINETUNED_DIR / f"{save_name}.pt"
         trainer(dataloader, model_params_path, writer)
-        load_params(model, model_params_path)  # 使用验证集最优权重测试和推理
 
     if test:
         test_dataloader = processor.get_dataloader("test")
@@ -64,5 +60,4 @@ text = [
     "广州市花都区花东镇27号楼",
 ]
 
-if __name__ == "__main__":
-    model_go(train=True, test=True, inference=True)
+model_go(1, 1, 1, config.BASE_DIR / "finetuned/address_tagging.pt")

@@ -283,13 +283,11 @@
                 const data = await response.json();
                 console.log(data);
                 const address = [
-                    `- 省份：${data.prov ?? '无'}`,
+                    `- 省份：${data.province ?? '无'}`,
                     `- 城市：${data.city ?? '无'}`,
                     `- 区县：${data.district ?? '无'}`,
                     `- 街道：${data.town ?? '无'}`,
-                    `- 详细地址：${data.detail ?? '无'}`,
-                    `- 姓名：${data.name ?? '无'}`,
-                    `- 电话：${data.phone ?? '无'}`
+                    `- 详细地址：${data.detail ?? '无'}`
                 ];
                 responseContent = address.join('\n');
             } catch (error) {

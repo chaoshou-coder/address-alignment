@@ -1,6 +1,4 @@
-import json
 import os
-from pathlib import Path
 import random
 from datasets import Dataset
 from torch.utils.data import Subset
@@ -18,8 +16,8 @@ class Processor:
         train_ratio=0.8,
         test_ratio=0.1,
     ):
-        self.data_path = Path(data_path)
-        self.save_dir = Path(save_dir)
+        self.data_path = data_path
+        self.save_dir = save_dir
         self.tokenizer = tokenizer
         self.batch_size = batch_size
         self.max_seq_len = max_seq_len
@@ -53,10 +51,10 @@ class Processor:
     def _split_dataset(self, dataset: Dataset):
         """划分数据集"""
         train_size = int(dataset.num_rows * self.train_ratio)
-        dataset = dataset.train_test_split(test_size=self.test_ratio, seed=42)
-        split = dataset["train"].train_test_split(train_size=train_size, seed=42)
-        dataset["train"] = split["train"]
-        dataset["valid"] = split["test"]
+        dataset = dataset.train_test_split(test_size=self.test_ratio)
+        dataset["train"], dataset["valid"] = (
+            dataset["train"].train_test_split(train_size=train_size).values()
+        )
         return dataset
 
 class AddressTaggingProcessor(Processor):
@@ -67,7 +65,7 @@ class AddressTaggingProcessor(Processor):
         tokenizer,
         batch_size,
         label_list,
-        max_seq_len=128,
+        max_seq_len=64,
         train_ratio=0.8,
         test_ratio=0.1,
     ):
@@ -95,42 +93,27 @@ class AddressTaggingProcessor(Processor):
         return dataset
 
     def _generate_examples(self):
-        """读取逐字标注 JSONL，并在错误中指出原始数据行号。"""
-        with self.data_path.open(encoding="utf-8") as f:
-            for line_no, line in enumerate(f, 1):
-                if not line.strip():
-                    continue
-                try:
-                    example = json.loads(line)
-                    text, labels = example["text"], example["labels"]
-                    if not isinstance(text, list) or not text or not all(
-                        isinstance(char, str) and bool(char) for char in text
-                    ):
-                        raise ValueError("text 必须是非空的字符串列表")
-                    if not isinstance(labels, list) or len(text) != len(labels):
-                        raise ValueError("text 与 labels 必须等长")
-                    chars, char_labels = [], []
-                    for word, label in zip(text, labels):
-                        if label not in self.label2id:
-                            raise ValueError(f"未知标签：{label}")
-                        # 数据第 3202 行含多字词“中心”，展开后保持字符级标注。
-                        for index, char in enumerate(word):
-                            char_label = label
-                            if len(word) > 1 and label != "O":
-                                prefix, entity = label.split("-", 1)
-                                if prefix == "B":
-                                    prefix = "B" if index == 0 else "I"
-                                elif prefix == "E":
-                                    prefix = "E" if index == len(word) - 1 else "I"
-                                elif prefix == "S":
-                                    prefix = "B" if index == 0 else "E" if index == len(word) - 1 else "I"
-                                char_label = f"{prefix}-{entity}"
-                            chars.append(char)
-                            char_labels.append(self.label2id[char_label])
-                    text, label_ids = chars, char_labels
-                except (ValueError, KeyError, TypeError) as exc:
-                    raise ValueError(f"{self.data_path}:{line_no}: 数据或标签无效：{exc}") from exc
-                yield {"text": text, "labels": label_ids}
+        """
+        将文本分块，每块是一个样本
+        每块中每行是一个词和标签
+        """
+        with open(self.data_path, "r", encoding="utf-8") as f:
+            blocks = f.read().split("\n\n")
+            for block in blocks:
+                text, labels = [], []
+                lines = block.split("\n")
+                for line in lines:
+                    if not line.strip():
+                        continue
+                    word, label = line.strip().split()
+                    text.append(word)
+                    # TXT 保留原标签；读取时将通用字段映射到当前类别。
+                    if label.endswith(("-name", "-phone")):
+                        label = "O"
+                    elif label.endswith("-detail"):
+                        label = label.replace("-detail", "-poi")
+                    labels.append(self.label2id[label])
+                yield {"text": text, "labels": labels}
 
     def _map_fn(self, examples):
         inputs = self.tokenizer(
@@ -164,7 +147,7 @@ class AddressTaggingProcessor(Processor):
         aligned_labels = []
         previous_word_idx = None
         for word_idx in word_ids:
-            if word_idx is not None and word_idx != previous_word_idx:
+            if word_idx and word_idx != previous_word_idx:
                 aligned_labels.append(labels[word_idx])
             else:
                 aligned_labels.append(-100)

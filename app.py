@@ -8,19 +8,17 @@ from address_alignment import address_alignment
 from models_def import AddressTagging, load_params
 from init_db import initialize_database
 
-# 首次启动时从本地地区 SQL 初始化 SQLite，已有数据库直接复用。
 initialize_database()
 
 # 加载模型
 model = AddressTagging(config.PRETRAINED_DIR / "bert-base-chinese", config.LABELS)
-if not load_params(model, config.MODEL_PARAMS_PATH):
-    raise FileNotFoundError("缺少训练权重，请先运行 main.py")
+load_params(model, config.FINETUNED_DIR / "address_tagging.pt")
 
 # 创建 FastAPI 实例
 app = FastAPI()
 
 # 挂载静态文件
-app.mount("/static", StaticFiles(directory=str(config.BASE_DIR / "templates")), name="static")
+app.mount("/static", StaticFiles(directory="templates"), name="static")
 
 class AddressAlignmentRequest(BaseModel):
     message: str = Field(..., example="地址文本信息")
@@ -34,7 +32,7 @@ class AddressAlignmentResponse(BaseModel):
 
 @app.get("/")
 async def homepage():
-    return FileResponse(config.BASE_DIR / "templates/index.html")
+    return FileResponse("templates/index.html")
 
 @app.post("/address_alignment")
 async def handle_message(request: AddressAlignmentRequest) -> AddressAlignmentResponse:
