@@ -19,7 +19,7 @@ FINETUNED_DIR = BASE_DIR / "finetuned"
 LOGS_DIR = BASE_DIR / "logs"
 
 # 训练、测试和推理共用 MPS。
-DEVICE = torch.device("mps")
+DEVICE = torch.device("cuda")
 
 # 与 data.jsonl 和 V1.0.1 文档保持同一标签顺序。
 LABELS = [
