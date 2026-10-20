@@ -1,6 +1,6 @@
 # 地址对齐
 
-以 1.0 文档代码为基础，保留 57 类标签，使用 PyTorch、FastAPI 和 SQLite。
+57 类标签，使用 PyTorch、FastAPI 和 SQLite。
 
 ## 环境与设备
 
