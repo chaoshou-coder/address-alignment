@@ -1,0 +1,40 @@
+# 模型与权重
+/pretrained/
+/finetuned/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.bin
+*.h5
+*.hdf5
+
+# Python 环境与缓存
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 训练日志
+/logs/
+
+# IDE 与系统文件
+.idea/
+.vscode/
+.DS_Store
+
+# 本地环境变量
+.env
+.env.*
+
+# 项目参考文档
+/地址对齐V1.0.1-项目说明.docx
+/实战之地址对齐1.0.docx
+
+# 数据全部纳入版本管理，包括原始数据、SQL、SQLite 和预处理结果
+!/data/
+!/data/**
