@@ -24,7 +24,7 @@ __pycache__/
 .env
 .env.*
 .codex/
-.docx
+*.docx
 
 # 训练日志
 /logs/
