@@ -3,7 +3,7 @@ name = "address-alignment"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
-    "torch==2.13.0+cu130",
+    "torch==2.13.0",
     "transformers>=4.40,<6",
     "datasets>=2.19,<6",
     "scikit-learn>=1.4,<2",
@@ -14,9 +14,11 @@ dependencies = [
     "uvicorn>=0.29,<1",
 ]
 
-# uv 安装时仅将 torch 指向官方 CUDA 13.0 源。
+# macOS 使用 PyPI 的 MPS 构建；Linux / Windows 使用 CUDA 13.0 构建。
 [tool.uv.sources]
-torch = { index = "pytorch-cu130" }
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]
 
 [[tool.uv.index]]
 name = "pytorch-cu130"

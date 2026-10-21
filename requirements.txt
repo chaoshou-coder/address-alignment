@@ -1,8 +1,9 @@
-# 本项目 CUDA 13.0 部署依赖（Linux / Windows NVIDIA GPU）。
-# PyTorch 使用官方 cu130 构建，其余包从 PyPI 安装。
+# macOS 使用 MPS；Linux / Windows 使用官方 CUDA 13.0 构建。
+# 按当前平台选择 PyTorch，其余包从 PyPI 安装。
 --extra-index-url https://download.pytorch.org/whl/cu130
 
-torch==2.13.0+cu130
+torch==2.13.0; sys_platform == "darwin"
+torch==2.13.0+cu130; sys_platform == "linux" or sys_platform == "win32"
 transformers>=4.40,<6
 datasets>=2.19,<6
 scikit-learn>=1.4,<2

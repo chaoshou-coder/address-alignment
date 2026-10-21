@@ -9,6 +9,7 @@ device = config.DEVICE
 learning_rate = 1e-5
 
 def model_go(train=None, test=None, inference=None, model_params_path=None):
+    print(f"运行设备：{device}")
     model = AddressTagging(config.PRETRAINED_DIR / "bert-base-chinese", config.LABELS)
     processor = AddressTaggingProcessor(
         data_path=config.RAW_DATA_DIR / "data.txt",

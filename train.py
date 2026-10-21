@@ -15,7 +15,7 @@ class Trainer:
         - learning_rate: 学习率
         - checkpoint_steps: 多少步之后保存检查点
         """
-        self.model = model
+        self.model = model.to(device)
         self.device = device
         self.epochs = epochs
         self.learning_rate = learning_rate
@@ -42,7 +42,6 @@ class Trainer:
         self.writer = writer
         self.is_test = is_test
 
-        self.model.to(self.device)
         self.global_step = 0
 
         # 测试

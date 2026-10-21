@@ -37,7 +37,8 @@ class AddressTagging(torch.nn.Module):
         return {"logits": logits, "loss": loss}
 
     @torch.inference_mode()
-    def predict(self, text: str | list[str], device=config.DEVICE, batch_size=32):
+    def predict(self, text: str | list[str], device=None, batch_size=32):
+        device = config.DEVICE if device is None else device
         self.eval()
         self.to(device)
 
